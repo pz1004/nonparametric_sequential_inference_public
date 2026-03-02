@@ -1,0 +1,12 @@
+# Never commit datasets or private runtime logs
+/data/
+**/data/
+**/experiment.log
+**/*.log
+**/*.npz
+**/__pycache__/
+**/*.pyc
+.venv/
+results/
+artifacts/
+paper/
