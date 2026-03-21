@@ -2141,6 +2141,7 @@ def _build_pareto_all_datasets_figure(phase1_run: Path, dst: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import numpy as np
 
     csv = phase1_run / "phase1_summary.csv"
     if not csv.exists():
@@ -2151,7 +2152,16 @@ def _build_pareto_all_datasets_figure(phase1_run: Path, dst: Path) -> None:
     if not datasets:
         raise RuntimeError("No datasets found in phase1_summary.csv")
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9), dpi=180)
+    plt.rcParams.update(
+        {
+            "axes.labelsize": 16,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "axes.titlesize": 18,
+            "legend.fontsize": 14,
+        }
+    )
+    fig, axes = plt.subplots(2, 2, figsize=(18, 10))
     flat = axes.flatten()
 
     for idx, ax in enumerate(flat):
@@ -2174,40 +2184,85 @@ def _build_pareto_all_datasets_figure(phase1_run: Path, dst: Path) -> None:
             .sort_values("work_reduction_p2_mean")
         )
 
+        x_vals = curve["work_reduction_p2_mean"].to_numpy(dtype=float)
+        y_vals = curve["accuracy_p2_mean"].to_numpy(dtype=float)
+        labels = [f"{float(v):.2f}" for v in curve["threshold"].to_numpy(dtype=float)]
+
         ax.plot(
-            curve["work_reduction_p2_mean"],
-            curve["accuracy_p2_mean"],
+            x_vals,
+            y_vals,
             marker="o",
+            markersize=7,
             linestyle="-",
-            color="tab:blue",
+            linewidth=2.5,
+            color="#0072B2",
             label="P2-STOP",
         )
-        for _, row in curve.iterrows():
-            ax.text(
-                float(row["work_reduction_p2_mean"]),
-                float(row["accuracy_p2_mean"]),
-                f"{float(row['threshold']):.2f}",
-                fontsize=7,
-            )
 
         ax.scatter(
             [float(g["work_reduction_dirichlet"].mean())],
             [float(g["accuracy_dirichlet"].mean())],
             marker="x",
-            s=55,
-            color="tab:orange",
+            s=80,
+            linewidths=2.0,
+            color="#D55E00",
             label="Dirichlet",
         )
 
         ax.set_title(ds.upper())
         ax.set_xlabel("Work reduction")
         ax.set_ylabel("Accuracy")
-        ax.grid(alpha=0.2)
-        ax.legend(fontsize=8)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.yaxis.grid(True, linestyle="--", alpha=0.5, color="gray")
+        ax.set_axisbelow(True)
+        ax.legend(loc="best")
+
+        # Place threshold labels with simple collision-avoidance in display space.
+        fig.canvas.draw()
+        order = np.argsort(x_vals)
+        placed: list[tuple[float, float]] = []
+        candidate_offsets = [
+            (0, 12),
+            (0, -14),
+            (10, 10),
+            (10, -12),
+            (-10, 10),
+            (-10, -12),
+            (14, 0),
+            (-14, 0),
+        ]
+        for i in order:
+            x = float(x_vals[i])
+            y = float(y_vals[i])
+            txt = labels[i]
+            base_x, base_y = ax.transData.transform((x, y))
+            chosen_dx, chosen_dy = candidate_offsets[0]
+            for dx, dy in candidate_offsets:
+                cand_x = base_x + dx
+                cand_y = base_y + dy
+                overlap = any(
+                    abs(cand_x - px) < 28 and abs(cand_y - py) < 16 for px, py in placed
+                )
+                if not overlap:
+                    chosen_dx, chosen_dy = dx, dy
+                    break
+            ax.annotate(
+                txt,
+                xy=(x, y),
+                xytext=(chosen_dx, chosen_dy),
+                textcoords="offset points",
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="#1F2937",
+                bbox={"boxstyle": "round,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.85},
+            )
+            placed.append((base_x + chosen_dx, base_y + chosen_dy))
 
     fig.tight_layout()
     dst.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(dst)
+    fig.savefig(dst, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 

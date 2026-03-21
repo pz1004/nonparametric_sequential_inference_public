@@ -216,6 +216,17 @@ def save_dataset_plots(
     rng = np.random.default_rng(42)
     n_samples, n_trees = scales.shape
 
+    # Journal-oriented typography defaults for figure readability after downscaling.
+    plt.rcParams.update(
+        {
+            "axes.labelsize": 16,
+            "xtick.labelsize": 14,
+            "ytick.labelsize": 14,
+            "axes.titlesize": 18,
+            "legend.fontsize": 14,
+        }
+    )
+
     sample_count = min(20, n_samples)
     sample_indices = rng.choice(n_samples, size=sample_count, replace=False)
 
@@ -223,7 +234,7 @@ def save_dataset_plots(
 
     ax = axes[0]
     for idx in sample_indices:
-        ax.plot(np.arange(1, n_trees + 1), scales[idx], color="gray", alpha=0.35, linewidth=1.0)
+        ax.plot(np.arange(1, n_trees + 1), scales[idx], color="gray", alpha=0.25, linewidth=1.0)
     ax.set_title("Streaming IQR scale per instance")
     ax.set_xlabel("Tree index")
     ax.set_ylabel("Scale")
@@ -242,8 +253,8 @@ def save_dataset_plots(
     )
     std_rel = np.sqrt(var_rel)
     xs = np.arange(1, n_trees + 1)
-    ax.plot(xs, mean_rel, color="tab:blue", linewidth=2.0)
-    ax.fill_between(xs, mean_rel - std_rel, mean_rel + std_rel, color="tab:blue", alpha=0.2)
+    ax.plot(xs, mean_rel, color="tab:blue", linewidth=2.5)
+    ax.fill_between(xs, mean_rel - std_rel, mean_rel + std_rel, color="tab:blue", alpha=0.3)
     ax.axhline(0.10, color="tab:red", linestyle="--", linewidth=1.0, label="theta=0.10")
     ax.set_title("Relative scale mean +/- std")
     ax.set_xlabel("Tree index")
@@ -251,14 +262,42 @@ def save_dataset_plots(
     ax.legend()
 
     ax = axes[2]
-    ax.hist(p2_stop_times + 1, bins=20, alpha=0.6, label="P2-STOP", color="tab:green")
-    ax.hist(dirichlet_stop_times + 1, bins=20, alpha=0.6, label="Dirichlet", color="tab:orange")
+    p2_color = "#0072B2"
+    dirichlet_color = "#D55E00"
+    ax.hist(
+        p2_stop_times + 1,
+        bins=20,
+        alpha=0.70,
+        label="P2-STOP",
+        color=p2_color,
+        edgecolor="white",
+        linewidth=0.8,
+    )
+    ax.hist(
+        dirichlet_stop_times + 1,
+        bins=20,
+        alpha=0.70,
+        label="Dirichlet",
+        color=dirichlet_color,
+        edgecolor="white",
+        linewidth=0.8,
+    )
     ax.set_title("Stopping-time histogram")
     ax.set_xlabel("Trees used")
     ax.legend()
 
+    for ax in axes:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.yaxis.grid(True, linestyle="--", alpha=0.5, color="gray")
+        ax.set_axisbelow(True)
+
     fig.tight_layout()
-    fig.savefig(output_dir / f"phase1_scale_diagnostics_{dataset}.png")
+    fig.savefig(
+        output_dir / f"phase1_scale_diagnostics_{dataset}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(7, 5), dpi=160)
